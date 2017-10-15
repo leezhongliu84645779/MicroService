@@ -1,3 +1,6 @@
-module.exports.userAuthorization = function(req, res, role) {
+var accessIntensity = ["user", "admin", "superadmin"];
+
+
+module.exports.userAuthorization = function(tokenRole, requireRole) {
   return true;
 }
