@@ -1,15 +1,20 @@
-const rateLimitingSetting = require('../data/ratelimiting/rateLimitingSetting.model.js').rateLimitingSetting;
-const rateLimitingGeneralInfo = require('../data/ratelimiting/rateLimitingGeneralInfo.model.js').rateLimitingGeneralInfo;
+const rateLimitingSetting = require('../data/ratelimiting/rateLimitingSetting.model.js');
+const rateLimitingGeneralInfo = require('../data/ratelimiting/rateLimitingGeneralInfo.model.js');
+const mongoose = require('mongoose');
+mongoose.Promise = require('bluebird');
 class RateLimiting {
   constructor(methodType, url, ip){
-    loadRateLimitingData(methodType, url, ip);
+    console.log("entering the constructor");
+    this._methodType = methodType;
+    this._url = url;
+    this._ip = ip
   }
 
   checkPermission() {
-    checkRefill();
+    this.checkRefill();
     if (this._totalBucket > 0){
       this._totalBucket -= 1;
-      updateRateLimitingGeneralInfo();
+      this.updateRateLimitingGeneralInfo();
       return true;
     }
     return false;
@@ -23,7 +28,7 @@ class RateLimiting {
       'lastRefillTime' : this._lastRefillTime,
       'totalBucket' : this._totalBucket,
     }
-    MyModel.findOneAndUpdate(query, updatedData, {upsert:true}, function(err, doc){
+    rateLimitingGeneralInfo.findOneAndUpdate(query, updatedData, {upsert:true}, function(err, doc){
       if (err) {
         console.log("fail to update the database");
       }
@@ -33,59 +38,101 @@ class RateLimiting {
 
   loadRateLimitingData(methodType, url, ip) {
     const referenceId = url + methodType;
-    if (loadRateLimitingSetting(referenceId)) {
-      loadRateLimitingGeneralInfo(referenceId, ip);
-    }
-  }
-
-  loadRateLimitingGeneralInfo(referenceId, ip) {
-    rateLimitingGeneralInfo.find({rateLimitingId : referenceId, IP : ip}).exec().then(function(rateLimitingGeneralInfo) {
-      this._ip = ip
-      if (rateLimitingGeneralInfo) {
-        this._lastRefillTime = rateLimitingGeneralInfo.lastRefillTime;
-        this._totalBucket = rateLimitingGeneralInfo.totalBucket;
-        this._newRateLimitingInfo = false;
-      } else {
-        this._lastRefillTime = Date.now();
-        this._totalBucket = this._ceiling;
-        this._newRateLimitingInfo = true;
-      }
-    }).catch(function(err){
-      console.log("fail to load the date");
-    });
-  }
-
-  loadRateLimitingSetting(referenceId) {
-    rateLimitingSetting.find({referenceId : referenceId}).exec().then(function(rateLimitingSetting) {
-      if (rateLimitingSetting) {
+    console.log("enter loadRateLimitingData");
+    return new Promise((resolve, reject) => {
+      rateLimitingSetting.findRateLimitingSettingByReferenceId(referenceId).then((info) => {
+      console.log("The setting we found from the database is");
+      console.log(info);
+      if (info.length > 0) {
         this._referenceId = referenceId;
-        this._ceiling = rateLimitingSetting.ceiling;
-        this._rate = rateLimitingSetting.rate;
-        this._rateLimitingAllowed = true;
-        return true;
+        this._ceiling = info.ceiling;
+        this._rate = info.rate;
+        console.log("we have rateLimitingSetting for this API");
+        rateLimitingGeneralInfo.findRequestRateLimitingGeneralInfo(referenceId, ip).then((info) => {
+          this._ip = ip
+          if (rateLimitingGeneralInfo) {
+            this._lastRefillTime = rateLimitingGeneralInfo.lastRefillTime;
+            this._totalBucket = rateLimitingGeneralInfo.totalBucket;
+            this._newRateLimitingInfo = false;
+          } else {
+            this._lastRefillTime = Date.now();
+            this._totalBucket = this._ceiling;
+            this._newRateLimitingInfo = true;
+          }
+          resolve(true);
+        }).catch((err) => {
+          console.log("something wrong happens when trying to get the setting data");
+          console.log(err);
+          reject(false);
+        })
       } else {
-        console.log("we don't have ratelimiting setting for this API");
-        this._rateLimitingAllowed = false;
-        return false;
+        console.log("we don't have rateLimitingSetting for this API")
+        resolve(false);
       }
-    }).catch(function(err){
-      console.log("fail to load the date");
-      this._rateLimitingAllowed;
-      return false
-    });
+    }).catch((err) => {
+      console.log("something wrong happens when trying to get the setting data");
+      console.log(err);
+      reject(false);
+    })
   }
+  )}
+
+  // loadRateLimitingGeneralInfo(referenceId, ip) {
+  //   console.log("for some weird reason function still go inside here");
+  //   rateLimitingGeneralInfo.find({rateLimitingId : referenceId, IP : ip}).exec().then(function(rateLimitingGeneralInfo) {
+  //     this._ip = ip
+  //     if (rateLimitingGeneralInfo) {
+  //       this._lastRefillTime = rateLimitingGeneralInfo.lastRefillTime;
+  //       this._totalBucket = rateLimitingGeneralInfo.totalBucket;
+  //       this._newRateLimitingInfo = false;
+  //     } else {
+  //       this._lastRefillTime = Date.now();
+  //       this._totalBucket = this._ceiling;
+  //       this._newRateLimitingInfo = true;
+  //     }
+  //   }).catch(function(err){
+  //     console.log("fail to load the data");
+  //   });
+  // }
+
+//   loadRateLimitingSetting(referenceId) {
+//     console.log("enter loadRateLimitingSetting");
+//     return new Promise(function(resolve, reject){
+//       rateLimitingSetting.find({referenceId : referenceId}).exec().then(function(rateLimitingSetting) {
+//         if (rateLimitingSetting) {
+//           this._referenceId = referenceId;
+//           this._ceiling = rateLimitingSetting.ceiling;
+//           this._rate = rateLimitingSetting.rate;
+//           this._rateLimitingAllowed = true;
+//           console.log("we have rateLimitingSetting for this API");
+//           resolve(true);
+//         } else {
+//           console.log("we don't have ratelimiting setting for this API");
+//           this._rateLimitingAllowed = false;
+//           reject(false);
+//         }
+//       }).catch(function(err){
+//         console.log("fail to load the setting data");
+//         this._rateLimitingAllowed = false;
+//         reject(false);
+//       });
+//   });
+// }
 
   checkRefill() {
     //check the time difference in minutes between the current time and last refill time
-    const timeDifference = timeDifferenceInMinutes(Date.now, this._lastRefillTime)
+    const timeDifference = this.timeDifferenceInMinutes(Date.now, this._lastRefillTime)
     if (timeDifference > this._rate && this._totalBucket <= this._ceiling){
-        refillBucket();
+        this.refillBucket();
         return true;
     }
     return false;
   }
 
   timeDifferenceInMinutes(date1, date2) {
+    console.log("find time difference");
+    console.log(date1);
+    console.log(date2);
     const timeDifference = date1.getTime() - date2.getTime(); // This will give difference in milliseconds
     return Math.round(timeDifference / 60000);
   }
@@ -96,7 +143,7 @@ class RateLimiting {
   }
 
   rateLimitingOperationAllowed() {
-    return this._rateLimitingAllowed;
+    return this.loadRateLimitingData(this._methodType, this._url, this._ip);
   }
 }
 

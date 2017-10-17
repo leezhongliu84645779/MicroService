@@ -21,4 +21,17 @@ const rateLimitingGeneralInfoSchema = new Schema({
 })
 
 const rateLimitingGeneralInfo = mongoose.model('rateLimitingGeneralInfo', rateLimitingGeneralInfoSchema);
-module.exports.rateLimitingGeneralInfo = rateLimitingGeneralInfo;
+
+
+
+module.exports.findRequestRateLimitingGeneralInfo = function(referenceId, ip) {
+  return new Promise((resolve, reject) => {
+    rateLimitingGeneralInfo.find({rateLimitingId : referenceId, IP : ip}, function(err, info) {
+      if (err) {
+        reject(err);
+      } else {
+        resolve(info);
+      }
+    });
+  });
+}
