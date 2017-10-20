@@ -20,7 +20,7 @@ const rateLimitingGeneralInfoSchema = new Schema({
   },
 })
 
-const rateLimitingGeneralInfo = mongoose.model('rateLimitingGeneralInfo', rateLimitingGeneralInfoSchema);
+const rateLimitingGeneralInfo = mongoose.model('ratelimitinggeneralinfos', rateLimitingGeneralInfoSchema);
 
 
 
@@ -33,5 +33,26 @@ module.exports.findRequestRateLimitingGeneralInfo = function(referenceId, ip) {
         resolve(info);
       }
     });
+  });
+}
+
+module.exports.updateRateLimitingGeneralInfo = function(referenceId, ip, lastRefillTime, totalBucket){
+  const query = {'rateLimitingId' : referenceId, 'IP' : ip}
+  const updatedData = {
+    'rateLimitingId' : referenceId,
+    'IP' : ip,
+    'lastRefillTime' : lastRefillTime,
+    'totalBucket' : totalBucket,
+  }
+  console.log("preparing to update generalInfo");
+  return new Promise((resolve, reject) => {
+    rateLimitingGeneralInfo.findOneAndUpdate(query, updatedData, {upsert:true}).then((info) => {
+      console.log("data succesfully updated");
+      resolve(true);
+    }).catch((err) => {
+      console.log("data not updated");
+      console.log(err);
+      reject(false);
+    })
   });
 }

@@ -16,16 +16,19 @@ var checkAccessRights = function(req, res) {
   return res.send("401");
 }
 
+var getRequestIPAddress = function(req) {
+  return req.headers['x-forwarded-for'] ||
+  req.connection.remoteAddress ||
+  req.socket.remoteAddress ||
+  req.connection.socket.remoteAddress;
+}
 //We fist authenticate the user and then authorize the user. If the user is both
 //authenticated and authorized, we do the http proxy.
 router
-  .route('/session')
+  .route('/application')
   .post(function(req, res) {
-     var ip = req.headers['x-forwarded-for'] ||
-     req.connection.remoteAddress ||
-     req.socket.remoteAddress ||
-     req.connection.socket.remoteAddress;
-     var ratelimiting = new RateLimiting("POST", "/session", ip);
+     var ip = getRequestIPAddress(req);
+     var ratelimiting = new RateLimiting("POST", "/application", ip);
      ratelimiting.rateLimitingOperationAllowed().then((ratelimitingAllowed) => {
        if (ratelimitingAllowed) {
          if(ratelimiting.checkPermission()) {

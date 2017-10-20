@@ -9,11 +9,6 @@ const rateLimitingSettingSchema = new Schema({
     type: String,
     require: true,
   },
-  rate: {
-    type: Number,
-    require: true,
-    min: 1,
-  },
   ceiling: {
     type: Number,
     require: true,
@@ -25,7 +20,7 @@ const rateLimitingSettingSchema = new Schema({
   },
 })
 
-const rateLimitingSetting = mongoose.model('RateLimitingSetting', rateLimitingSettingSchema);
+const rateLimitingSetting = mongoose.model('ratelimitingsettings', rateLimitingSettingSchema);
 module.exports.findRateLimitingSettingByReferenceId = function(referenceId) {
   return new Promise((resolve, reject) => {
     rateLimitingSetting.find({ referenceId : referenceId }, function(err, info) {
